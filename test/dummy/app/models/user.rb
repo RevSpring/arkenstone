@@ -5,4 +5,5 @@ class User
 
   url 'http://example.com/users/'
   attributes :name, :age, :gender, :bearded
+  client_only_attributes :awesome
 end

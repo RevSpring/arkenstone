@@ -138,13 +138,13 @@ module Arkenstone
 
       ### Runs any encoding hooks on the attributes if present.
       def saveable_attributes
-        return self.attributes unless Arkenstone::Hook.has_hooks? self.class
-        attrs = {}
-        Arkenstone::Hook.all_hooks_for_class(self.class).each do |hook|
-          new_attrs = hook.encode_attributes(self.attributes)
-          attrs.merge! new_attrs unless new_attrs.nil?
+        client_only_attrs = self.class.arkenstone_client_only_attributes
+        server_attrs = attributes.except(*client_only_attrs)
+        if Arkenstone::Hook.has_hooks?(self.class)
+          hook_processed_attributes server_attrs
+        else
+          server_attrs
         end
-        attrs.empty? ? self.attributes : attrs
       end
 
       ### Creates a deep dupe of the document with the id set to nil
@@ -155,10 +155,23 @@ module Arkenstone
       end
 
       private
+
+      def hook_processed_attributes( preprocessed_attrs = nil )
+        preprocessed_attrs ||= self.attributes
+        processed_attrs = {}
+        Arkenstone::Hook.all_hooks_for_class(self.class).each do |hook|
+          new_attrs = hook.encode_attributes preprocessed_attrs
+          processed_attrs.merge! new_attrs unless new_attrs.nil?
+        end
+        processed_attrs.empty? ? preprocessed_attrs : processed_attrs
+      end
+
     end
 
     module ClassMethods
-      attr_accessor :arkenstone_url, :arkenstone_attributes, :arkenstone_hooks, :arkenstone_inherit_hooks
+      attr_accessor :arkenstone_url, :arkenstone_attributes,
+        :arkenstone_client_only_attributes, :arkenstone_hooks,
+        :arkenstone_inherit_hooks
 
       ### Sets the root url used for generating RESTful requests.
       def url(new_url)
@@ -218,13 +231,24 @@ module Arkenstone
         self.arkenstone_inherit_hooks = val
       end
 
-      ### Sets the attributes for an Arkenstone Document. These become `attr_accessors` on instances.
-      def attributes(*options)
-        self.arkenstone_attributes = options
+      ### Sets or adds to the attributes for an Arkenstone Document.
+      ### These become `attr_accessors` on instances.
+      def attributes( *options )
+        self.arkenstone_attributes ||= []
+        self.arkenstone_attributes += options
         options.each do |option|
           send(:attr_accessor, option)
         end
         return self.arkenstone_attributes
+      end
+
+      ### Sets or adds client only attributes, these will not be sent to any
+      # resource server requests, but will be serialized for the client
+      def client_only_attributes( *attrs )
+        self.arkenstone_client_only_attributes ||= []
+        self.arkenstone_client_only_attributes += attrs
+        attributes(*attrs)
+        return arkenstone_client_only_attributes
       end
 
       ### You can use Arkenstone without defining a `url`, but you won't be able to save a model without one. This raises an error if the url is not defined.

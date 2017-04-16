@@ -195,7 +195,7 @@ class ArkenstoneTest < Test::Unit::TestCase
   def test_set_request_data_uses_json
     user = build_user 1
     request = Net::HTTP::Post.new 'http://localhost'
-    Arkenstone::Network.set_request_data request, user.attributes
+    Arkenstone::Network.set_request_data request, user.saveable_attributes
     assert(request.content_type == 'application/json')
     assert(request.body == '{"name":"John Doe","age":18,"gender":"Male","bearded":true}')
   end
@@ -235,7 +235,7 @@ class ArkenstoneTest < Test::Unit::TestCase
     assert(SuperUser.arkenstone_url == "http://example.com/superusers")
   end
 
-  def test_save_attributes
+  def test_saveable_attributes
     eval %(
       class ArkenstoneAttrHook < Arkenstone::Hook
         attr_accessor :called
@@ -248,8 +248,11 @@ class ArkenstoneTest < Test::Unit::TestCase
     hook = ArkenstoneAttrHook.new
     User.add_hook hook
     u = User.new
-    u.saveable_attributes
+    u.awesome = true
+    attrs = u.saveable_attributes
     assert_equal(true, hook.called)
+    assert_equal(true, u.awesome)
+    assert_equal(nil, attrs[:awesome])
   end
 
   def test_parse_all_builds_array
@@ -331,15 +334,3 @@ class ArkenstoneTest < Test::Unit::TestCase
 
 end
 
-def build_user(id)
-  User.build user_options.merge({id: id})
-end
-
-def create_user(options, id)
-  stub_request(:post, User.arkenstone_url).to_return(body: options.merge({id: id}).to_json)
-  User.build(options).save
-end
-
-def user_options(options={})
-  {name: 'John Doe', age: 18, gender: 'Male', bearded: true}.merge!(options)
-end

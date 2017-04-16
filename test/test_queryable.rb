@@ -28,7 +28,7 @@ class QueryableTests < Test::Unit::TestCase
     dummy_user1 = user_options(name: 'user 1')
     dummy_user2 = user_options(name: 'user 2')
     stub_request(:post, "#{User.arkenstone_url}query").with(body: { name: 'user 1' }).to_return(body: [dummy_user1,dummy_user2].to_json)
-    results = User.where do 
+    results = User.where do
       {
         name: 'user 1'
       }
@@ -47,8 +47,4 @@ class QueryableTests < Test::Unit::TestCase
     assert(result == [])
   end
 
-end
-
-def user_options(options={})
-  {name: 'John Doe', age: 18, gender: 'Male', bearded: true}.merge!(options)
 end
